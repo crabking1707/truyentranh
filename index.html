@@ -64,7 +64,7 @@ a{color:var(--yellow)}
         <button class="btn btn-dark" style="width:52px" onclick="toggleKey()">👁</button>
       </div>
       <div class="notice">Key mới của Google bắt đầu bằng <b>AQ...</b> vẫn dùng được bình thường. App gửi qua header <span class="kbd">x-goog-api-key</span>, không dùng <span class="kbd">?key=</span> cũ nữa. Dán <b>full key</b> bằng nút Copy ở AI Studio, đừng gõ tay bản bị cắt ...</div>
-      <div class="notice red">⚠️ Đừng chia sẻ key cho người khác. Nếu lỡ lộ, hãy tạo key mới ở AI Studio. File này <b>không chứa sẵn key</b>.</div>
+      <div class="notice red">⚠️ Đừng chia sẻ key cho người khác. Nếu lỡ lộ, hãy tạo key mới ở AI Studio. File này <b>không chứa sẵn key</b>.<br><br><b>Lỗi 503 = Model quá tải, KHÔNG phải lỗi key.</b> Nếu thấy 503, bấm Kiểm tra lại hoặc đổi sang model Neon / Carbon / 2.5-flash, hoặc đợi 1-2 phút.</div>
       <div class="row" style="margin-top:10px">
         <button class="btn btn-dark" onclick="pasteKey()">📋 Dán nhanh</button>
         <button class="btn btn-dark" onclick="clearKey()">🗑 Xóa key</button>
@@ -172,14 +172,22 @@ async function callGemini(model, prompt, isImage){
   let url='https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent';
   let body={contents:[{parts:[{text:prompt}]}]};
   if(isImage){body.generationConfig={responseModalities:['TEXT','IMAGE'], imageConfig:{aspectRatio:'1:1'}};}
-  // Cách 1: header x-goog-api-key (bắt buộc cho key AQ...)
-  try{
-    log('Đang gọi '+model+' bằng header x-goog-api-key...');
-    let res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)});
-    let txt=await res.text();
-    log(model+' -> HTTP '+res.status+' (header)');
-    if(!res.ok){
-      // Nếu 401, thử fallback ?key=
+  // Thử tối đa 3 lần nếu gặp 503 quá tải
+  for(let attempt=1; attempt<=3; attempt++){
+    try{
+      log('Đang gọi '+model+' (lần '+attempt+'/3) bằng header x-goog-api-key...');
+      let res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)});
+      let txt=await res.text();
+      log(model+' -> HTTP '+res.status+' (header)');
+      if(res.ok) return JSON.parse(txt);
+      if(res.status===503){
+        let wait = attempt*4;
+        log('503: Model '+model+' đang quá tải, đợi '+wait+'s rồi thử lại...');
+        setStatus('Model '+model+' đang quá tải (503), đợi '+wait+'s thử lại lần '+attempt+'...');
+        await new Promise(r=>setTimeout(r, wait*1000));
+        if(attempt===3) throw new Error('HTTP 503: Model '+model+' đang quá tải. Đây KHÔNG phải lỗi key. Hãy thử đổi sang model khác (Neon/Carbon/2.5-flash) hoặc đợi 1-2 phút rồi thử lại. Google báo: This model is currently experiencing high demand.');
+        continue;
+      }
       if(res.status===401||res.status===403){
         log('Header bị 401/403, thử lại bằng ?key= cho key cũ AIza...');
         let res2=await fetch(url+'?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -188,15 +196,18 @@ async function callGemini(model, prompt, isImage){
         if(!res2.ok) throw new Error('HTTP '+res2.status+' : '+txt2.slice(0,800));
         return JSON.parse(txt2);
       }
+      if(res.status===429){
+        throw new Error('HTTP 429: Hết quota / quá nhiều request. Đợi 1 phút rồi thử lại, hoặc đổi sang model khác.');
+      }
       throw new Error('HTTP '+res.status+' : '+txt.slice(0,1000));
+    }catch(e){
+      if(e.message.includes('HTTP 503')||e.message.includes('HTTP 429')) throw e;
+      if(e.message.includes('Failed to fetch')||e.message.includes('Load failed')||e.name==='TypeError'){
+        throw new Error('LOAD_FAILED: Trình duyệt đã chặn gọi tới Google (Failed to fetch). Hãy mở file HTML này bằng Chrome/Safari ngoài, không mở trong khung xem trước của app, và kiểm tra mạng. Chi tiết: '+e.message);
+      }
+      if(attempt===3) throw e;
+      await new Promise(r=>setTimeout(r, 2000));
     }
-    return JSON.parse(txt);
-  }catch(e){
-    // Load failed = bị chặn bởi iframe / mạng / CORS
-    if(e.message.includes('Failed to fetch')||e.message.includes('Load failed')||e.name==='TypeError'){
-      throw new Error('LOAD_FAILED: Trình duyệt đã chặn gọi tới Google (Failed to fetch). Hãy mở file HTML này bằng Chrome/Safari ngoài, không mở trong khung xem trước của app, và kiểm tra mạng. Chi tiết: '+e.message);
-    }
-    throw e;
   }
 }
 
@@ -206,16 +217,27 @@ async function testKey(){
   if(key.length<20){alert('Key quá ngắn, bạn có copy thiếu không? Hãy bấm Copy ở AI Studio để lấy full key.');return;}
   localStorage.setItem('comicgen_key',key);
   document.getElementById('keyStatus').innerHTML='Đang kiểm tra...';
-  try{
-    let model=document.getElementById('textModel').value;
-    let data=await callGemini(model,'Trả lời đúng 1 chữ: OK',false);
-    let txt=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
-    document.getElementById('keyStatus').innerHTML='<span class="badge">✅ Key dùng được! Model '+model+' trả lời: '+txt.slice(0,50)+'</span>';
-    log('Test key OK với '+model);
-  }catch(e){
-    document.getElementById('keyStatus').innerHTML='<div class="err">❌ '+e.message+'</div>';
-    log('Test key lỗi: '+e.message);
+  let models=[document.getElementById('textModel').value,'gemini-4-neon','gemini-4-carbon','gemini-4-argon','gemini-2.5-flash'].filter((v,i,a)=>a.indexOf(v)===i);
+  for(let model of models){
+    try{
+      let data=await callGemini(model,'Trả lời đúng 1 chữ: OK',false);
+      let txt=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
+      document.getElementById('keyStatus').innerHTML='<span class="badge">✅ Key dùng được! Model '+model+' trả lời: '+txt.slice(0,50)+'</span><br><div class="small" style="margin-top:6px">Nếu model Hydrogen báo 503 thì không phải lỗi key, chỉ là model đó đang quá tải, app đã tự đổi sang '+model+'.</div>';
+      log('Test key OK với '+model);
+      // Tự đổi dropdown sang model chạy được
+      document.getElementById('textModel').value=model;
+      return;
+    }catch(e){
+      log('Test lỗi với '+model+': '+e.message.slice(0,300));
+      if(e.message.includes('503')||e.message.includes('quá tải')){
+        document.getElementById('keyStatus').innerHTML='<div class="notice">⏳ Model '+model+' đang quá tải (503), đang tự thử model khác...<br><span class="small">Đây KHÔNG phải lỗi key. Key của bạn đã kết nối được tới Google rồi.</span></div>';
+        continue;
+      }
+      document.getElementById('keyStatus').innerHTML='<div class="err">❌ '+e.message+'</div>';
+      return;
+    }
   }
+  document.getElementById('keyStatus').innerHTML='<div class="err">❌ Tất cả model đều quá tải (503). Hãy đợi 1-2 phút rồi bấm Kiểm tra lại. Key của bạn KHÔNG sai.</div>';
 }
 
 function cleanNameForImage(text){
