@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ComicGen AI - Tạo Truyện Tranh bằng Gemini</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#0F0F14;--card:#1C1C26;--card2:#23232F;--border:#2E2E3E;--text:#F2F2F5;--muted:#A8A8B8;--yellow:#FFD23F;--red:#FF5A5A;--green:#2ECC71}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{padding:16px 18px 10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border)}
+h1{margin:0;font-size:28px;letter-spacing:.5px}
+h1 span{color:var(--yellow)}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.btn{border:0;cursor:pointer;border-radius:12px;padding:11px 16px;font-weight:800;font-size:14px}
+.btn-yellow{background:var(--yellow);color:#000}
+.btn-dark{background:#2A2A38;color:#fff;border:1px solid var(--border)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.wrap{max-width:1180px;margin:0 auto;padding:16px;display:grid;grid-template-columns:360px 1fr;gap:16px}
+@media(max-width:860px){.wrap{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+label{font-size:12px;font-weight:800;letter-spacing:.5px;color:var(--yellow);text-transform:uppercase}
+input,textarea,select{width:100%;background:#12121A;color:#fff;border:1px solid var(--border);border-radius:10px;padding:11px 12px;margin-top:6px;font-size:14px;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--yellow)}
+textarea{resize:vertical;min-height:88px}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.chip{padding:9px 13px;border-radius:999px;background:#2A2A38;border:1px solid var(--border);cursor:pointer;font-weight:700;font-size:13px}
+.chip.active{background:var(--yellow);color:#000;border-color:var(--yellow)}
+.notice{background:#2A2A1A;border:1px solid #4A3F10;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.5;margin-top:10px}
+.notice.red{background:#2E1A1A;border-color:#5A2222}
+.badge{display:inline-block;background:#123A24;color:#7CFFB2;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800}
+.panel{background:var(--card2);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:16px}
+.panel-head{padding:10px 12px;display:flex;justify-content:space-between;align-items:center;background:#16161E;font-weight:800;font-size:13px}
+.panel-img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#000;display:block}
+.panel-body{padding:12px;font-size:14px;line-height:1.6}
+.err{background:#3A1515;border:1px solid #6A2222;border-radius:12px;padding:12px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.log{background:#0A0A10;border:1px solid var(--border);border-radius:12px;padding:12px;font-size:12.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto}
+.empty{border:1.5px dashed var(--border);border-radius:16px;padding:28px;text-align:center;color:var(--muted);line-height:1.6}
+.kbd{background:#2A2A38;padding:2px 7px;border-radius:6px;font-size:12px}
+.progress{height:8px;background:#2A2A38;border-radius:999px;overflow:hidden}
+.progress>div{height:100%;background:var(--yellow);width:0%;transition:.3s}
+.small{font-size:12.5px;color:var(--muted);line-height:1.6}
+a{color:var(--yellow)}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>COMICGEN <span>AI</span></h1><div class="sub">Biến ý tưởng thành truyện tranh trong 1 phút — File HTML độc lập, mở bằng trình duyệt là chạy</div></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-dark" onclick="toggleTheme()">🌙 Sáng / Tối</button>
+    <a href="https://aistudio.google.com/apikey" target="_blank"><button class="btn btn-dark">Mở Google AI Studio ↗</button></a>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT -->
+  <div>
+    <div class="card">
+      <label>🔑 API Key Gemini</label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <input id="apiKey" type="password" placeholder="Dán key AQ... hoặc AIza... vào đây" style="margin-top:0">
+        <button class="btn btn-dark" style="width:52px" onclick="toggleKey()">👁</button>
+      </div>
+      <div class="notice">Key mới của Google bắt đầu bằng <b>AQ...</b> vẫn dùng được bình thường. App gửi qua header <span class="kbd">x-goog-api-key</span>, không dùng <span class="kbd">?key=</span> cũ nữa. Dán <b>full key</b> bằng nút Copy ở AI Studio, đừng gõ tay bản bị cắt ...</div>
+      <div class="notice red">⚠️ Đừng chia sẻ key cho người khác. Nếu lỡ lộ, hãy tạo key mới ở AI Studio. File này <b>không chứa sẵn key</b>.</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn btn-dark" onclick="pasteKey()">📋 Dán nhanh</button>
+        <button class="btn btn-dark" onclick="clearKey()">🗑 Xóa key</button>
+      </div>
+      <button class="btn btn-yellow" style="width:100%;margin-top:10px" onclick="testKey()">Lưu & Kiểm tra Key</button>
+      <div id="keyStatus" class="small" style="margin-top:10px"></div>
+
+      <div style="margin-top:16px"><label>🤖 Model viết kịch bản (Gemini 4)</label>
+        <select id="textModel">
+          <option value="gemini-4-hydrogen">gemini-4-hydrogen — Nhanh, miễn phí (khuyên dùng)</option>
+          <option value="gemini-4-neon">gemini-4-neon — Mạnh nhất, cần billing</option>
+          <option value="gemini-4-carbon">gemini-4-carbon — Cân bằng</option>
+          <option value="gemini-4-argon">gemini-4-argon — Pro</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash — Dự phòng cũ</option>
+        </select>
+        <div class="small" style="margin-top:6px">Gemini 4 không có model tên “gemini-4”. Phải chọn 1 trong 4 model trên. Viết kịch bản dùng Gemini 4, vẽ ảnh dùng model vẽ ảnh bên dưới.</div>
+      </div>
+
+      <div style="margin-top:14px"><label>🎨 Phong cách truyện</label>
+        <select id="style">
+          <option value="Manga màu, hand-drawn, nét mực sạch, màu tươi">Manga màu</option>
+          <option value="Manga đen trắng, hand-drawn ink, screentone">Manga đen trắng</option>
+          <option value="Manhwa Hàn Quốc, webtoon, màu pastel">Manhwa Hàn Quốc</option>
+          <option value="Truyện tranh Việt Nam, nét vẽ tay, màu ấm">Truyện tranh Việt Nam</option>
+          <option value="Chibi dễ thương, đầu to, mắt to">Chibi dễ thương</option>
+          <option value="Western Comic Mỹ, nét đậm, màu rực">Western Comic Mỹ</option>
+        </select>
+      </div>
+
+      <div style="margin-top:14px"><label>🖼️ Số khung tranh</label>
+        <div class="chips" id="panelChips">
+          <div class="chip" data-n="4">4 khung</div>
+          <div class="chip active" data-n="6">6 khung</div>
+          <div class="chip" data-n="8">8 khung</div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px"><label>👤 Nhân vật chính (để giữ nhất quán)</label>
+        <textarea id="character">Cậu bé Bảo, 12 tuổi, tóc đen dựng, áo hoodie vàng</textarea>
+        <div class="small">Tên có bản quyền (ví dụ nhân vật anime nổi tiếng) sẽ tự đổi thành mô tả chung khi vẽ để không bị chặn.</div>
+      </div>
+
+      <div style="margin-top:14px"><label>📖 Mô tả truyện chính</label>
+        <textarea id="story" style="min-height:110px">Cậu bé Bảo tìm thấy một con rồng nhỏ trong rừng sau trường, cả hai trở thành bạn và cùng nhau phiêu lưu.</textarea>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn btn-dark" onclick="fillExample(1)">Ví dụ: Rồng nhỏ</button>
+        <button class="btn btn-dark" onclick="fillExample(2)">Ví dụ: Siêu anh hùng</button>
+      </div>
+      <button class="btn btn-yellow" id="genBtn" style="width:100%;margin-top:12px;padding:14px;font-size:16px" onclick="generate()">✨ TẠO TRUYỆN</button>
+      <div class="progress" style="margin-top:12px"><div id="bar"></div></div>
+      <div id="status" class="small" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <label>🧾 Nhật ký lỗi / Debug</label>
+      <div id="log" class="log">Chưa có log. Hãy bấm Lưu & Kiểm tra hoặc Tạo Truyện.</div>
+      <button class="btn btn-ghost" style="margin-top:10px" onclick="document.getElementById('log').textContent=''">Xóa log</button>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div>
+    <div id="result">
+      <div class="empty">
+        <div style="font-size:42px">📚</div>
+        <b style="color:#fff;font-size:18px">Chưa có truyện nào</b><br>
+        1. Dán API Key ở cột trái → Lưu & Kiểm tra<br>
+        2. Nhập mô tả truyện → Bấm <b style="color:var(--yellow)">TẠO TRUYỆN</b><br>
+        3. Đợi app viết kịch bản bằng Gemini 4 rồi vẽ từng khung<br><br>
+        <span style="font-size:12px">Mẹo: Mở file này bằng Chrome / Safari / Edge. Nếu mở bằng file:// mà bị chặn, hãy kéo file vào cửa sổ trình duyệt hoặc dùng Live Server.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let panelCount = 6;
+let isLight = false;
+document.querySelectorAll('#panelChips .chip').forEach(c=>{
+  c.onclick=()=>{document.querySelectorAll('#panelChips .chip').forEach(x=>x.classList.remove('active'));c.classList.add('active');panelCount=parseInt(c.dataset.n)};
+});
+function toggleTheme(){
+  isLight=!isLight;
+  if(isLight){document.documentElement.style.setProperty('--bg','#F5F1E6');document.documentElement.style.setProperty('--card','#FFFFFF');document.documentElement.style.setProperty('--card2','#FFF9E6');document.documentElement.style.setProperty('--border','#E2D9B8');document.documentElement.style.setProperty('--text','#111');document.documentElement.style.setProperty('--muted','#555');}
+  else{location.reload();}
+}
+function toggleKey(){let el=document.getElementById('apiKey');el.type=el.type==='password'?'text':'password';}
+async function pasteKey(){try{let t=await navigator.clipboard.readText();if(t){document.getElementById('apiKey').value=t.trim();log('Đã dán key (độ dài '+t.trim().length+')');}else{alert('Không đọc được clipboard, hãy dán thủ công Ctrl+V');}}catch(e){alert('Hãy dán thủ công: Ctrl+V / Cmd+V');}}
+function clearKey(){document.getElementById('apiKey').value='';localStorage.removeItem('comicgen_key');document.getElementById('keyStatus').innerHTML='';log('Đã xóa key');}
+function log(msg){let el=document.getElementById('log');el.textContent=(new Date().toLocaleTimeString())+' - '+msg+'\n'+el.textContent;}
+function setStatus(t){document.getElementById('status').textContent=t;}
+function setBar(p){document.getElementById('bar').style.width=p+'%';}
+function getKey(){return document.getElementById('apiKey').value.trim();}
+function fillExample(n){
+  if(n===1){document.getElementById('story').value='Cậu bé Bảo tìm thấy một con rồng nhỏ trong rừng sau trường, cả hai trở thành bạn và cùng nhau phiêu lưu.';}
+  else{document.getElementById('story').value='Một học sinh bình thường bỗng có siêu năng lực vào ngày thi học kỳ, cậu phải giấu năng lực để không bị phát hiện nhưng vẫn cứu bạn bè.';}
+}
+window.onload=()=>{let k=localStorage.getItem('comicgen_key');if(k){document.getElementById('apiKey').value=k;document.getElementById('keyStatus').innerHTML='<span class="badge">Đã tích hợp sẵn - sẵn sàng tạo truyện</span>';}};
+
+async function callGemini(model, prompt, isImage){
+  let key=getKey();
+  if(!key) throw new Error('Chưa có API Key');
+  let url='https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent';
+  let body={contents:[{parts:[{text:prompt}]}]};
+  if(isImage){body.generationConfig={responseModalities:['TEXT','IMAGE'], imageConfig:{aspectRatio:'1:1'}};}
+  // Cách 1: header x-goog-api-key (bắt buộc cho key AQ...)
+  try{
+    log('Đang gọi '+model+' bằng header x-goog-api-key...');
+    let res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)});
+    let txt=await res.text();
+    log(model+' -> HTTP '+res.status+' (header)');
+    if(!res.ok){
+      // Nếu 401, thử fallback ?key=
+      if(res.status===401||res.status===403){
+        log('Header bị 401/403, thử lại bằng ?key= cho key cũ AIza...');
+        let res2=await fetch(url+'?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        let txt2=await res2.text();
+        log(model+' -> HTTP '+res2.status+' (?key= fallback)');
+        if(!res2.ok) throw new Error('HTTP '+res2.status+' : '+txt2.slice(0,800));
+        return JSON.parse(txt2);
+      }
+      throw new Error('HTTP '+res.status+' : '+txt.slice(0,1000));
+    }
+    return JSON.parse(txt);
+  }catch(e){
+    // Load failed = bị chặn bởi iframe / mạng / CORS
+    if(e.message.includes('Failed to fetch')||e.message.includes('Load failed')||e.name==='TypeError'){
+      throw new Error('LOAD_FAILED: Trình duyệt đã chặn gọi tới Google (Failed to fetch). Hãy mở file HTML này bằng Chrome/Safari ngoài, không mở trong khung xem trước của app, và kiểm tra mạng. Chi tiết: '+e.message);
+    }
+    throw e;
+  }
+}
+
+async function testKey(){
+  let key=getKey();
+  if(!key){alert('Hãy dán API Key trước');return;}
+  if(key.length<20){alert('Key quá ngắn, bạn có copy thiếu không? Hãy bấm Copy ở AI Studio để lấy full key.');return;}
+  localStorage.setItem('comicgen_key',key);
+  document.getElementById('keyStatus').innerHTML='Đang kiểm tra...';
+  try{
+    let model=document.getElementById('textModel').value;
+    let data=await callGemini(model,'Trả lời đúng 1 chữ: OK',false);
+    let txt=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
+    document.getElementById('keyStatus').innerHTML='<span class="badge">✅ Key dùng được! Model '+model+' trả lời: '+txt.slice(0,50)+'</span>';
+    log('Test key OK với '+model);
+  }catch(e){
+    document.getElementById('keyStatus').innerHTML='<div class="err">❌ '+e.message+'</div>';
+    log('Test key lỗi: '+e.message);
+  }
+}
+
+function cleanNameForImage(text){
+  // Đổi tên bản quyền thành mô tả chung để không bị chặn
+  let t=text||'';
+  const map=[['Natsuki Subaru','cậu bé tóc đen, mắt nâu, áo khoác đen'],['Subaru','cậu bé tóc đen'],['Re:Zero','thế giới phép thuật']];
+  map.forEach(([a,b])=>{t=t.split(a).join(b);});
+  return t;
+}
+function extractJSON(txt){
+  let m=txt.match(/\{[\s\S]*\}/);
+  if(!m) throw new Error('Model không trả JSON. Nội dung: '+txt.slice(0,500));
+  return JSON.parse(m[0]);
+}
+
+async function generate(){
+  let key=getKey();
+  if(!key){alert('Hãy dán API Key trước!');return;}
+  localStorage.setItem('comicgen_key',key);
+  let btn=document.getElementById('genBtn');btn.disabled=true;btn.textContent='Đang tạo...';
+  setBar(5);setStatus('Bước 1/2: Đang viết kịch bản bằng '+document.getElementById('textModel').value+'...');
+  try{
+    let character=document.getElementById('character').value.trim();
+    let story=document.getElementById('story').value.trim();
+    let style=document.getElementById('style').value;
+    let textModel=document.getElementById('textModel').value;
+    let scriptPrompt=`Bạn là biên kịch truyện tranh. Hãy tạo kịch bản truyện tranh gồm ${panelCount} khung.
+Nhân vật chính: ${character}
+Câu chuyện: ${story}
+Phong cách: ${style}
+Yêu cầu: Trả về DUY NHẤT JSON, không giải thích thêm, dạng:
+{"title":"...","panels":[{"panel_number":1,"image_prompt_en":"detailed English prompt for drawing, hand-drawn comic style, no photorealistic, include character description, scene, action","dialogue_vi":"lời thoại ngắn","narration_vi":"lời dẫn ngắn"}]}
+image_prompt_en phải viết bằng tiếng Anh, chi tiết, KHÔNG chứa tên nhân vật có bản quyền, chỉ dùng mô tả ngoại hình chung. dialogue_vi và narration_vi viết bằng tiếng Việt, ngắn như trong truyện tranh.`;
+    let scriptData=null, lastErr='';
+    // Thử model đã chọn, rồi fallback các model Gemini 4 còn lại
+    let textModels=[textModel,'gemini-4-hydrogen','gemini-4-neon','gemini-4-carbon','gemini-2.5-flash'].filter((v,i,a)=>a.indexOf(v)===i);
+    for(let m of textModels){
+      try{let d=await callGemini(m,scriptPrompt,false);let txt=d?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';scriptData=extractJSON(txt);log('Viết kịch bản OK bằng '+m);break;}
+      catch(e){lastErr=e.message;log('Kịch bản lỗi với '+m+': '+e.message.slice(0,300));}
+    }
+    if(!scriptData) throw new Error('Không viết được kịch bản. Lỗi cuối: '+lastErr);
+    setBar(30);setStatus('Bước 2/2: Đang vẽ '+scriptData.panels.length+' khung...');
+
+    let html='<div class="card" style="margin-bottom:14px"><h2 style="margin:0 0 6px">'+(scriptData.title||'Truyện của bạn')+'</h2><div class="small">Viết kịch bản bằng Gemini 4, vẽ ảnh bằng model vẽ ảnh. Xem model thật đã vẽ ở từng khung và Nhật ký lỗi bên trái.</div></div>';
+    document.getElementById('result').innerHTML=html;
+
+    let imageModels=['gemini-2.5-flash-image','gemini-3-pro-image-preview','gemini-2.0-flash-preview-image-generation'];
+    for(let i=0;i<scriptData.panels.length;i++){
+      let p=scriptData.panels[i];
+      setStatus('Đang vẽ khung '+(i+1)+'/'+scriptData.panels.length+'...');
+      setBar(30+Math.round((i+1)/scriptData.panels.length*65));
+      let cleanChar=cleanNameForImage(character);
+      let imgPrompt=`Hand-drawn comic style, ${style}, consistent character: ${cleanChar}, scene: ${p.image_prompt_en}, speech bubble text in Vietnamese: "${p.dialogue_vi}", clean line art, vibrant comic ink, no photorealistic, no real photo`;
+      let imgSrc='', usedModel='', errMsg='';
+      for(let im of imageModels){
+        try{
+          let d=await callGemini(im,imgPrompt,true);
+          let parts=d?.candidates?.[0]?.content?.parts||[];
+          let part=parts.find(x=>x.inlineData&&x.inlineData.data);
+          if(part){imgSrc='data:'+(part.inlineData.mimeType||'image/png')+';base64,'+part.inlineData.data;usedModel=im;log('Vẽ khung '+(i+1)+' OK bằng '+im);break;}
+          else{let t=parts.map(x=>x.text||'').join(' ');errMsg='Model trả về không có ảnh. Text: '+t.slice(0,300);log('Khung '+(i+1)+' không có ảnh từ '+im+': '+t.slice(0,200));}
+        }catch(e){errMsg=e.message;log('Vẽ khung '+(i+1)+' lỗi với '+im+': '+e.message.slice(0,400));}
+      }
+      let cardHtml='';
+      if(imgSrc){
+        cardHtml=`<div class="panel"><div class="panel-head"><span>KHUNG ${p.panel_number||i+1}</span><span style="color:var(--yellow);font-size:11px">Đã vẽ bằng ${usedModel}</span></div><img class="panel-img" src="${imgSrc}"><div class="panel-body"><b>💬 ${p.dialogue_vi||''}</b><br><span style="color:var(--muted)">${p.narration_vi||''}</span><br><br><button class="btn btn-dark" onclick="downloadImg('${imgSrc}','khung-${i+1}.png')">⬇ Tải ảnh khung này</button></div></div>`;
+      }else{
+        cardHtml=`<div class="panel"><div class="panel-head"><span>KHUNG ${p.panel_number||i+1}</span><span style="color:var(--red)">VẼ LỖI</span></div><div class="err">❌ Vẽ lỗi: ${errMsg.replace(/</g,'&lt;')}\n\nLời thoại: ${p.dialogue_vi||''}\nLời dẫn: ${p.narration_vi||''}\n\nHãy xem Nhật ký lỗi bên trái, kiểm tra key và thử lại. Nếu lỗi là LOAD_FAILED, hãy mở file này bằng Chrome/Safari ngoài.</div></div>`;
+      }
+      document.getElementById('result').innerHTML+=cardHtml;
+    }
+    setStatus('✅ Xong! Đã tạo '+scriptData.panels.length+' khung.');
+  }catch(e){
+    document.getElementById('result').innerHTML='<div class="err">❌ Lỗi: '+e.message+'</div>'+document.getElementById('result').innerHTML;
+    log('Generate lỗi: '+e.message);
+    setStatus('Lỗi: '+e.message.slice(0,200));
+  }finally{btn.disabled=false;btn.textContent='✨ TẠO TRUYỆN';}
+}
+function downloadImg(src,name){let a=document.createElement('a');a.href=src;a.download=name;a.click();}
+</script>
+</body>
+</html>
