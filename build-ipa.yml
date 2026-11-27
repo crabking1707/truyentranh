@@ -1,0 +1,51 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tạo Assets.xcassets từ icon-1024.png
+        run: |
+          mkdir -p Assets.xcassets/AppIcon.appiconset
+          cp icon-1024.png Assets.xcassets/AppIcon.appiconset/icon-1024.png
+          cat > Assets.xcassets/Contents.json <<'JSON'
+          {"info":{"author":"xcode","version":1}}
+          JSON
+          cat > Assets.xcassets/AppIcon.appiconset/Contents.json <<'JSON'
+          {"images":[{"filename":"icon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}
+          JSON
+
+      - name: Cài XcodeGen và tạo project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build (không ký)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project HieuGamerChessAI.xcodeproj \
+            -scheme HieuGamerChessAI \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Đóng gói IPA
+        run: |
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/HieuGamerChessAI.app Payload/
+          zip -qry HieuGamerChessAI.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HieuGamerChessAI-ipa
+          path: HieuGamerChessAI.ipa
