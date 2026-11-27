@@ -476,8 +476,8 @@
       <div class="grid-2">
         <div><label class="field" for="time">⏱ Thời gian nghĩ</label>
           <select id="time">
-            <option value="400">Nhanh · 0,4s</option><option value="1200" selected>Cân bằng · 1,2s</option>
-            <option value="3000">Kỹ · 3s</option><option value="5000">Sâu · 5s</option>
+            <option value="400">Nhanh · 0,4s</option><option value="1200">Cân bằng · 1,2s</option>
+            <option value="3000">Kỹ · 3s</option><option value="5000" selected>Sâu · 5s</option>
             <option value="10000">Siêu sâu · 10s</option><option value="20000">Cực hạn · 20s</option>
           </select></div>
         <div><label class="field" for="skill">♛ Sức mạnh (Skill)</label>
@@ -570,7 +570,7 @@
     _N5l(_N6d() ? 'Đã vẽ gợi ý: Vàng → Tím.' : 'Đã có gợi ý nước đi.');
     if (_N5b.checked) {
       const _N8bot = /\/computer(\/|$)/i.test(location.pathname);
-      const _N6a = _N8bot ? 3000 + Math.floor(Math.random() * 5001) : 450 + Math.floor(Math.random() * 750);
+      const _N6a = _N8bot ? 3000 + Math.floor(Math.random() * 3001) : 450 + Math.floor(Math.random() * 750);
       _N5l(`Tự đi sau ${(_N6a / 1000).toFixed(2)} giây...`);
       _N5y = setTimeout(() => {
         const _N6b = _Nl(), _N6c = _N1f(_N6b);
