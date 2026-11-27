@@ -1,0 +1,27 @@
+name: HieuGamerChessAI
+options:
+  bundleIdPrefix: com.hieugamer
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  HieuGamerChessAI:
+    type: application
+    platform: iOS
+    sources:
+      - path: HieuGamerApp.swift
+      - path: ChessWebView.swift
+      - path: chess_ai.js
+        buildPhase: resources
+      - path: Assets.xcassets
+    settings:
+      base:
+        PRODUCT_NAME: HieuGamerChessAI
+        PRODUCT_BUNDLE_IDENTIFIER: com.hieugamer.chessai
+        INFOPLIST_FILE: Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
